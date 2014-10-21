@@ -19,14 +19,19 @@ import time
 import threading
 
 import cherrypy
+from cherrypy.lib.static import serve_file
 
 from ws4py.server.cherrypyserver import WebSocketPlugin, WebSocketTool
 from ws4py.websocket import WebSocket
 from ws4py.messaging import TextMessage
 
+from ABElectronics_ADCPi import ADCPi
+
+
 cur_dir = os.path.normpath(os.path.abspath(os.path.dirname(__file__)))
-index_path = os.path.join(cur_dir, 'index.html')
+index_path = os.path.join(cur_dir, 'static/index.html')
 index_page = file(index_path, 'r').read()
+
 
 class ChatWebSocketHandler( WebSocket ):
 
@@ -36,11 +41,11 @@ class ChatWebSocketHandler( WebSocket ):
     def closed(self, code, reason="A client left the room without a proper explanation."):
         cherrypy.engine.publish('websocket-broadcast', TextMessage(reason))
 
+
 class ChatWebApp(object):
     @cherrypy.expose
     def index(self):
-        return index_page % {'username': "User%d" % random.randint(50, 1000),
-                             'ws_addr': 'ws://192.168.1.103:9000/ws'}
+        return serve_file( "/home/pi/pulse/static/index.html" )
 
     @cherrypy.expose
     def ws(self):
@@ -52,26 +57,48 @@ class PulseBroker( threading.Thread ):
     def __init__( self ):
         super( PulseBroker, self ).__init__()
         self._finished = False
+        self.stop_event = threading.Event()
 
     def run( self ):
         self._finished = False
-        while not self._finished:
-            message = "%d" % random.randint( 0, 100 )
-            print message
+        adc = ADCPi(0x68, 0x69, 12)
+        
+        current_channel = 0
+        num_channels = 4
+        vals = []
+        smoothing = 0.8
+        fps = 1.0/60.0
+        for i in range( current_channel, num_channels ):
+            vals.append( 0 )
+        
+        while not self.stop_event.is_set():
+            
+            # takes a while to read a channel,
+            # so only read one each time round this loop
+            # however, send all recently-read values on every loop
+            # so we've got some data at the other end
+            v = adc.readVoltage( current_channel + 1 )
+            vals[ current_channel ] = (v * smoothing) + (vals[current_channel]*(1.0-smoothing))
+            # vals[ current_channel ] = v
+            current_channel += 1
+            if current_channel >= num_channels:
+                current_channel = 0
+            
+            message = str( vals )
             cherrypy.engine.publish('websocket-broadcast', TextMessage(message))
-            time.sleep(1)
+            self.stop_event.wait( fps )
+
+        print "PulseBroker thread finished"
 
     def stop( self ):
-        self._finished = True
-
-    def finished( self ):
-        return self._finished
+        print "PulseBroker.stop()"
+        self.stop_event.set()
 
 
 if __name__ == '__main__':
     cherrypy.config.update({
         'server.socket_host': '0.0.0.0',
-        'server.socket_port': 9000
+        'server.socket_port': 9000,
     })
     
     WebSocketPlugin(cherrypy.engine).subscribe()
@@ -93,6 +120,10 @@ if __name__ == '__main__':
                             '/ws': {
                                 'tools.websocket.on': True,
                                 'tools.websocket.handler_cls': ChatWebSocketHandler
+                            },
+                            '/static': {
+                                'tools.staticdir.on': True,
+                                'tools.staticdir.dir': "/home/pi/pulse/static"
                             },
                         })
 

@@ -66,7 +66,7 @@ class PulseBroker( threading.Thread ):
         current_channel = 0
         num_channels = 4
         vals = []
-        smoothing = 0.8
+        smoothing = 0.2
         fps = 1.0/60.0
         for i in range( current_channel, num_channels ):
             vals.append( 0 )
@@ -78,7 +78,7 @@ class PulseBroker( threading.Thread ):
             # however, send all recently-read values on every loop
             # so we've got some data at the other end
             v = adc.readVoltage( current_channel + 1 )
-            vals[ current_channel ] = (v * smoothing) + (vals[current_channel]*(1.0-smoothing))
+            vals[ current_channel ] = (v * (1.0-smoothing) ) + (vals[current_channel]*smoothing)
             # vals[ current_channel ] = v
             current_channel += 1
             if current_channel >= num_channels:

@@ -1,0 +1,22 @@
+{
+    "sound_banks": {
+        "beep" : [
+            "beep_1",
+            "beep_2",
+            "beep_3",
+            "beep_4"
+        ],
+        "thump" : [
+            "thump_1",
+            "thump_2",
+            "thump_3",
+            "thump_4"
+        ],
+        "cheep" : [
+            "cheep_1",
+            "cheep_2",
+            "cheep_3",
+            "cheep_4"
+        ]
+    }
+}

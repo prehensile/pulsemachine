@@ -6,11 +6,30 @@
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <link href="/static/app.css" rel="stylesheet">
       <script type="application/javascript" src="/static/jquery-2.1.1.min.js"></script>
+      
+      <link rel="stylesheet" href="/static/jquery-ui-1.11.2.custom/jquery-ui.min.css">
+      <script src="/static/jquery-ui-1.11.2.custom/jquery-ui.min.js"></script>
+
       <script type="application/javascript" src="/static/createjs-2013.12.12.min.js"></script>
       <script type="application/javascript" src="/static/app.js"></script>
     </head>
     <body>
-      <p id="fps">0</p>
+      <form action="#">
+        <span id="fps">0</span>
+        <label for="bankA">Sound bank A</label>
+        <select name="bankA" id="bankA">
+          <option value="beep">Beep</option>
+          <option value="thump">Thump</option>
+          <option value="cheep">Cheep</option>
+        </select>
+        <div id="sldXfade" style="width:400px; display: inline-block;"></div>
+        <label for="bankB">Sound bank B</label>
+        <select name="bankB" id="bankB">
+          <option value="beep">Beep</option>
+          <option value="thump">Thump</option>
+          <option value="cheep">Cheep</option>
+        </select>
+      </form>
       <canvas id="mainCanvas"></canvas>
 
       <!--

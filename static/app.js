@@ -1,5 +1,5 @@
 
-PulseListener = function( beatThreshold ){ this.init( beatThreshold ); }
+PulseListener = function( beatThreshold, dummyBPM ){ this.init( beatThreshold, dummyBPM ); }
 $.extend( PulseListener.prototype, {
 
   beatInterval: 0,
@@ -7,7 +7,6 @@ $.extend( PulseListener.prototype, {
   timeLastBeat: 0,
   lastValue: 0,
   valueSmoothing: 0.1,
-  isHigh: false,
   maxValue: 0,
   minValue: 0,
   bpm: 0,
@@ -16,113 +15,55 @@ $.extend( PulseListener.prototype, {
   intervalCache: [],
   intervalCacheLength: 20,
   sprite: null,
-  valueCache: [],
-  valueCacheLength: 10,
-
-  init: function( threshold ){
+  isBeat: false,
+  isHigh: false,
+  isDummy: false,
+  
+  init: function( threshold, dummyBPM ){
     this.beatThreshold = threshold;
+    this.isBeat = false;
+    this.isHigh = false;
+    this.isDummy = dummyBPM > 0;
+    if( this.isDummy ) {
+      this.bpm = dummyBPM;
+      this.beatInterval = (dummyBPM/60) * 1000;
+    }
   },
 
   logValue : function( valueIn ){
     
-    //console.log( valueIn );
-    //console.log(  valueIn / this.lastValue );
+    // console.log( "logValue: ", valueIn );
 
-    var isBeat = false;
+    if( this.isBeat )
+    {
+      this.isBeat = false;
+    }
+
     //var thisValue = this.smoothedValue( valueIn, this.lastValue, 0.1 );
     var thisValue = valueIn;
     var thisTime = new Date().getTime();
-
-    this.valueCache.push( thisValue );
-    if( this.valueCache.length > this.valueCacheLength ) this.valueCache.shift();
 
     // keep track of max val
     if( thisValue > this.maxValue) {
       this.maxValue = thisValue;
     }
     
-    var stopTracking = false;
-    // if( self.isTracking )
-    // {
-    //     stopTracking = true;
-    //     for (var i = this.valueCache.length - 1; i >= 0; i--) {
-    //       var val = this.valueCache[i];
-    //       if( val < 4.4 ) stopTracking = false;
-    //     }
-    // }
+    var isHighThisTime = ( thisValue > this.beatThreshold );
 
-    //console.log( stopTracking );
-
-    // log beats
-    if( thisValue > this.beatThreshold )
+    if( !this.isHigh && isHighThisTime )
     {
-      if( !this.isHigh ) {
-        this.isHigh = true;
-        isBeat = true;
-      }
-    }
-    else
-    {
-      if( this.isHigh ) {
-        this.isHigh = false;
-      }
-
-      if( this.isTracking && (this.beatInterval>0) )
-      {
-        // if we haven't gone over the tracking threshold for a while, stop tracking
-        if( (thisTime-this.timeLastBeat) > this.beatInterval*4 )
-        {
-          stopTracking = true;
-        }
-      }
-    }
-
-    if( isBeat )
-    {
+      this.isTracking = true;
+      this.isBeat = true;
       if( this.timeLastBeat > 0 )
       {
-        var timeSinceLastBeat = thisTime - this.timeLastBeat;
-        if( (this.beatInterval == 0) || (timeSinceLastBeat>(this.beatInterval/2)) )
-        {
-          if( this.beatInterval > 0 )
-          {
-            this.beatInterval = this.smoothedValue( timeSinceLastBeat, this.beatInterval, 0.5 );
-            //this.beatInterval = timeSinceLastBeat;
-          }
-          else
-          {
-            this.beatInterval = timeSinceLastBeat;
-          }
-
-          //this.intervalCache.push( this.beatInterval );
-          //if( this.intervalCache.length > this.intervalCacheLength ) this.intervalCache.shift()
-          //this.beatInterval = this.averageValue( this.intervalCache );
-
-          var bpm = (this.beatInterval / 1000) * 60;
-         // this.bpm = this.smoothedValue( bpm, this.bpm, 0.9 );
-          this.bpm = bpm;
-          console.log( "bpm", bpm );
-          this.isTracking = true;
-        }
+        this.beatInterval = thisTime - this.timeLastBeat;
       }
       this.timeLastBeat = thisTime;
     }
 
-    if( stopTracking )
-    {
-      console.log( "stopTracking" ); 
-      this.isTracking = false;
-
-      this.intervalCache = [];
-      this.timeLastBeat = 0;
-      this.beatInterval = 0;
-      thisValue = 0;
-      this.valueCache = [];
-      this.lastDisplayedBeatTime = 0;
-    }
-
     this.lastValue = thisValue;
-    return isBeat;
+    this.isHigh = isHighThisTime;
+    return this.isBeat;
   },
 
   averageValue: function( arrIn ) {
@@ -141,35 +82,22 @@ $.extend( PulseListener.prototype, {
   },
 
   normalisedValue: function(){
-    return (this.lastValue / this.maxValue);
+    if( this.lastValue != 0 )
+      return (this.lastValue / this.maxValue);
+    return 0;
   },
 
   lastDisplayedBeatTime: 0,
-
-  shouldDisplayBeat: function(){
-    
-    if( this.beatInterval <= 0 )
-    {
-      return false
+  shouldDisplayBeat: function( time ) {
+    var shouldBeat = false;
+    if( this.beatInterval > 0 ) {
+      var elapsed = time - this.lastDisplayedBeatTime;
+      if( elapsed > this.beatInterval ) {
+        this.lastDisplayedBeatTime = time;
+        shouldBeat = true;
+      }
     }
-
-    var shouldDisplay = false;
-    var thisTime = new Date().getTime();
-    
-    if( (this.lastDisplayedBeatTime==0) && (this.bpm>0) )
-    {
-      this.lastDisplayedBeatTime = thisTime;
-    }
-
-    if( (thisTime - this.lastDisplayedBeatTime) >= this.beatInterval )
-    {
-      shouldDisplay = true;
-      this.lastDisplayedBeatTime = thisTime;
-    }
-
-    //console.log( "shouldDisplay", shouldDisplay );
-
-    return shouldDisplay;
+    return shouldBeat;
   },
 
   displayedValueForTime: function( time ){
@@ -191,9 +119,62 @@ $.extend( PulseListener.prototype, {
 
 });
 
+initWidgets = function(){
+  $( "#sldXfade" ).slider();
+  $( "#bankA" ).selectmenu();
+  $( "#bankB" ).selectmenu();
+}
 
-$(function(){
+initSound = function(){
+  $.getJSON( "/static/soundbanks.json", function( json ){
+    var banks = json[ "sound_banks" ];
+    for(var bankKey in banks ) {
+      var thisBank = banks[bankKey ];
+      for( var soundKey in thisBank ) {
+        var soundId = thisBank[ soundKey ];
+        createjs.Sound.registerSound( "/static/"+soundId+".ogg", soundId );
+      }
+    };
+  });
+}
 
+easeInOutExpo = function (t, b, c, d) {
+    if (t==0) return b;
+    if (t==d) return b+c;
+    if ((t/=d/2) < 1) return c/2 * Math.pow(2, 10 * (t - 1)) + b;
+    return c/2 * (-Math.pow(2, -10 * --t) + 2) + b;
+  }
+
+easeInOutQuad = function (t, b, c, d) {
+    if ((t/=d/2) < 1) return c/2*t*t + b;
+    return -c/2 * ((--t)*(t-2) - 1) + b;
+  },
+
+playSoundForListenerIndex = function( index ){
+  console.log( 'playSoundForListenerIndex', index );
+  index++;
+  var idSoundA = $( "#bankA" ).val() + "_" + index;
+  var idSoundB = $( "#bankB" ).val() + "_" + index;
+  var xfade = $( "#sldXfade" ).slider( "value" ) / 100.0;
+  console.log(  idSoundA, idSoundB, xfade );
+  if( xfade < 1.0 ) {
+    var ins = createjs.Sound.play( idSoundA );
+    ins.volume = easeInOutQuad( xfade, 1.0, -1.0, 1.0 );
+  }
+  if( xfade > 0.0 ) {
+    var ins = createjs.Sound.play( idSoundB ); 
+    ins.volume = easeInOutQuad( xfade, 0.0, 1.0, 1.0 );
+  }
+}
+
+var ws;
+var lastDate = Date.now()
+var vals = [];
+var fps = 0;
+var pts = [];
+var maxVals = [];
+
+initWebsocket = function(){
   var addr = "ws://" + window.location.host + "/ws";        
   var ws = new WebSocket( addr );
   var username = "User" + parseInt( Math.random() * 1000 );
@@ -207,23 +188,7 @@ $(function(){
     e.preventDefault();
   };
 
-  var rs = function() {
-      var canvas = document.getElementById("mainCanvas");
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-  }
-  window.onresize = rs;
-  rs();
-
-  var stage = new createjs.Stage("mainCanvas");
-
-  var lastDate = Date.now()
-  var vals = [];
-  var fps = 0;
-  var pts = [];
-  var maxVals = [];
-
-  ws.onmessage = function (evt) {
+   ws.onmessage = function (evt) {
 
     now = Date.now();
     elapsed = now - lastDate;
@@ -246,13 +211,27 @@ $(function(){
 
      lastDate = now;
   };
+}
 
-  // set up sounds
-  createjs.Sound.registerSound("/static/beep_1.ogg", "beep_1");
-  createjs.Sound.registerSound("/static/beep_2.ogg", "beep_2");
-  createjs.Sound.registerSound("/static/beep_3.ogg", "beep_3");
-  createjs.Sound.registerSound("/static/beep_4.ogg", "beep_4");
-  createjs.Sound.registerSound("/static/beep_5.ogg", "beep_5");
+$(function(){
+
+  var rs = function() {
+      var canvas = document.getElementById("mainCanvas");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+  }
+  window.onresize = rs;
+  rs();
+
+  var dummyMode = true;
+
+  if( !dummyMode ) {
+    initWebsocket();
+  }
+  initWidgets();
+  initSound();
+
+  var stage = new createjs.Stage("mainCanvas");
 
   // set up Shape instance we'll be using to draw traces
   var lines = new createjs.Shape();
@@ -288,18 +267,20 @@ $(function(){
       traceX = stageWidth;
     }
 
-    var numLines = vals.length;
+    if( dummyMode ) {
+      vals = [0,0];
+    } 
+    numLines = vals.length;
+    
     var lineHeight = stageHeight / (numLines+2);
 
     while( listeners.length < numLines ) {
-      var listener = new PulseListener( 3.0 );
+      var dummyBPM = 0;
+      if( dummyMode ) {
+        dummyBPM = (Math.random() * 40) + 60;
+      }
+      var listener = new PulseListener( 3.0, dummyBPM );
       listeners.push( listener );
-      
-      // var sp = new createjs.Bitmap( "/static/heart.png" );
-      // sp.scaleX = sp.scaleY - 0.5;
-      // stage.addChild( sp );
-      // sprites.push( sp );
-      // console.log( "new sprite");
     }
 
     var thisPoints = [];
@@ -309,39 +290,13 @@ $(function(){
       var beat = listener.logValue( vals[i] );
       var thisY = baseline;
 
-      // var sprite = sprites[i];
-      //   lines.graphics.beginFill( "black" );
-      //   var b = sprite.getBounds();
-      //   if( b )
-      //   {
-      //     lines.graphics.drawRect( b.x, b.y, b.width, b.height );
-      //     lines.graphics.endFill();
-      //   }
-
-      if( listener.isTracking )
-      {
-        // sprite.visible = true;
-        // sprite.x = traceX;
-        // sprite.y = baseline - lineHeight + sprite.height;
-        // sprite.alpha = listener.normalisedValue();
-
-      //var beat = listener.shouldDisplayBeat();
-      // thisY = baseline - (listener.displayedValueForTime( thisTime )*lineHeight*0.8);
-       thisY = baseline - (listener.normalisedValue()*lineHeight*0.8);
-
-        if(beat) {
-          var sid = "beep_" + (i+1);
-          createjs.Sound.play( sid );
-          //thisY = baseline - (lineHeight*0;
-        }
+      beat = listener.shouldDisplayBeat( thisTime );
+      if(beat) {
+          console.log( "beat!" );
+          playSoundForListenerIndex( i );
       }
-      else
-      {
-       // sprite.visible = false;
-      }
-     // var baseline = (lineHeight*(i+2));
-      
-      //var thisY = baseline + (listener.normalisedValue() * lineHeight);
+
+      thisY = baseline - (listener.normalisedValue()*lineHeight*0.8);
       thisPoints.push( [ traceX, thisY ] );
     };
 

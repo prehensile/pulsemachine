@@ -3,6 +3,13 @@ body {
     color: #fff;
 }
 
+#fps {
+    display: block;
+}
+#sldXfade {
+    margin: 0 20px;
+}
+
 /*
 body, #mainCanvas {
     width: 100%;

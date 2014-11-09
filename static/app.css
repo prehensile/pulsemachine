@@ -6,8 +6,23 @@ body {
 #fps {
     display: block;
 }
+
 #sldXfade {
     margin: 0 20px;
+    width:400px; 
+    display: inline-block;
+}
+
+.slider {
+    
+}
+
+.pan {
+    width: 200px;
+    position: absolute !important;
+    display: block;
+    left: 0;
+    top: 0;
 }
 
 /*

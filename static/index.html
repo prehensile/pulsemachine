@@ -14,7 +14,7 @@
       <script type="application/javascript" src="/static/app.js"></script>
     </head>
     <body>
-      <form action="#">
+      <form id="controls" action="#">
         <span id="fps">0</span>
         <label for="bankA">Sound bank A</label>
         <select name="bankA" id="bankA">
@@ -22,7 +22,7 @@
           <option value="thump">Thump</option>
           <option value="cheep">Cheep</option>
         </select>
-        <div id="sldXfade" style="width:400px; display: inline-block;"></div>
+        <div id="sldXfade" class="slider xfade"></div>
         <label for="bankB">Sound bank B</label>
         <select name="bankB" id="bankB">
           <option value="beep">Beep</option>
